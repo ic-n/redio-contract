@@ -1,0 +1,13 @@
+[project]
+name = "rediopy"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic>=2.12.2",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "solana>=0.36.9",
+    "solders>=0.26.0",
+]

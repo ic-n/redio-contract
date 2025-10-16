@@ -1,0 +1,11 @@
+[project]
+name = "sdk"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "anchorpy[cli,pytest]>=0.21.0",
+    "genpy>=2021.1",
+    "ipython>=8.37.0",
+]

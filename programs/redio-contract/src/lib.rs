@@ -360,7 +360,7 @@ pub struct ProcessSale<'info> {
         seeds = [
             b"affiliate",
             merchant_pool.key().as_ref(),
-            affiliate_account.wallet.as_ref()
+            affiliate_wallet.key().as_ref()
         ],
         bump = affiliate_account.bump,
         constraint = affiliate_account.pool == merchant_pool.key() @ ErrorCode::InvalidAffiliate
@@ -415,11 +415,13 @@ pub struct RemoveAffiliate<'info> {
         seeds = [
             b"affiliate",
             merchant_pool.key().as_ref(),
-            affiliate_account.wallet.as_ref()
+            affiliate_wallet.key().as_ref()
         ],
         bump = affiliate_account.bump
     )]
     pub affiliate_account: Account<'info, AffiliateAccount>,
+    #[account(mut)]
+    pub affiliate_wallet: UncheckedAccount<'info>,
 
     pub merchant: Signer<'info>,
 }
