@@ -1,7 +1,7 @@
 import asyncio
 from solders.pubkey import Pubkey
 from solders.keypair import Keypair
-from sdk.rediopy.contract.contract import RedioContract
+from sdk.rediopy.contract import RedioContract
 
 
 async def main():
@@ -9,8 +9,8 @@ async def main():
 
     merchant = Keypair()
     usdc_mint = Pubkey.from_string(
-        "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU" # USDC devnet (circln)
-    )  
+        "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"  # USDC devnet (circln)
+    )
 
     ix = client.initialize_pool_ix(
         merchant=merchant,

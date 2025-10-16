@@ -10,3 +10,4 @@ test-ledger
 .idea
 .vscode
 *.log
+__pycache__
