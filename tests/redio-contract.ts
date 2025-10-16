@@ -297,6 +297,7 @@ describe("USDC Affiliate Escrow", () => {
         .accounts({
           merchantPool: merchantPoolPda,
           affiliateAccount: affiliatePda,
+          affiliateWallet: affiliate.publicKey,
           merchant: merchant.publicKey,
         })
         .signers([merchant])
