@@ -8,10 +8,14 @@ on:
 
 jobs:
   test:
-    runs-on: solanafoundation/anchor:v0.31.1
+    runs-on: ubuntu
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - uses: metadaoproject/setup-anchor@v3.1
+        with:
+          anchor-version: '0.31.1'
 
       - name: Install dependencies
         run: yarn install
