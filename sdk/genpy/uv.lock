@@ -610,10 +610,16 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "anchorpy", extra = ["cli", "pytest"] },
+    { name = "genpy" },
+    { name = "ipython" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "anchorpy", extras = ["cli", "pytest"], specifier = ">=0.21.0" }]
+requires-dist = [
+    { name = "anchorpy", extras = ["cli", "pytest"], specifier = ">=0.21.0" },
+    { name = "genpy", specifier = ">=2021.1" },
+    { name = "ipython", specifier = ">=8.37.0" },
+]
 
 [[package]]
 name = "siphash24"

@@ -1,1 +1,0 @@
-uv run anchorpy client-gen ../target/idl/redio_contract.json rediopy --pdas
