@@ -2,7 +2,7 @@ name: Anchor Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "**" ]  # @todo: set to main
   pull_request:
     branches: [ main ]
 
