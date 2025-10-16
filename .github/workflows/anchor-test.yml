@@ -19,12 +19,10 @@ jobs:
 
       - name: Install Solana
         run: |
-          curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash &&
-          source ~/.bashrc &&
-          anchor --version
+          curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash
 
       - name: Install Node dependencies
-        run: npm install
+        run: source ~/.bashrc && npm install
 
       - name: Run Anchor tests
-        run: anchor test --skip-lint   # @todo: remove and resove all of Struct field "*" is unsafe, but is not documented.
+        run: source ~/.bashrc && anchor test --skip-lint   # @todo: remove and resove all of Struct field "*" is unsafe, but is not documented.
