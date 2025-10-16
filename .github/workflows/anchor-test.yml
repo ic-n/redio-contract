@@ -9,20 +9,34 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          cache: "npm"
 
-      - name: Install Solana
+      - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source $HOME/.cargo/env
+          rustup default stable
 
-      - name: Install Node dependencies
-        run: source ~/.bashrc && npm install
+      - name: Install Solana CLI
+        run: |
+          curl -sSfL https://release.solana.com/v1.17.0/install | sh
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Install Anchor CLI
+        run: |
+          cargo install --git https://github.com/anchor-lang/anchor --tag v0.31.1 anchor-cli
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: npm install
 
       - name: Run Anchor tests
-        run: source ~/.bashrc && anchor test --skip-lint   # @todo: remove and resove all of Struct field "*" is unsafe, but is not documented.
+        run: anchor test --skip-lint   # @todo: remove and resove all of Struct field "*" is unsafe, but is not documented.
