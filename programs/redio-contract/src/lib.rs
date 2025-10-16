@@ -366,6 +366,8 @@ pub struct ProcessSale<'info> {
         constraint = affiliate_account.pool == merchant_pool.key() @ ErrorCode::InvalidAffiliate
     )]
     pub affiliate_account: Account<'info, AffiliateAccount>,
+    #[account(mut)]
+    pub affiliate_wallet: UncheckedAccount<'info>,
 
     #[account(
         seeds = [b"escrow_authority", merchant_pool.key().as_ref()],
@@ -384,7 +386,7 @@ pub struct ProcessSale<'info> {
         init_if_needed,
         payer = authority,
         associated_token::mint = usdc_mint,
-        associated_token::authority = affiliate_account.wallet,
+        associated_token::authority = affiliate_wallet,
         associated_token::token_program = token_program,
     )]
     pub affiliate_usdc: InterfaceAccount<'info, TokenAccount>,

@@ -144,6 +144,20 @@ describe("USDC Affiliate Escrow", () => {
         [Buffer.from("pool"), invalidMerchant.publicKey.toBuffer()],
         program.programId
       );
+      const invalidMerchantTokenAccount = await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        invalidMerchant,
+        usdcMint,
+        invalidMerchant.publicKey
+      );
+      const invalidMerchantUsdc = invalidMerchantTokenAccount.address;
+
+      const [invalidEscrowAuthorityPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("escrow_authority"), invalidPoolPda.toBuffer()],
+        program.programId
+      );
+
+      const invalidEscrowUsdc = getAssociatedTokenAddressSync(usdcMint, invalidEscrowAuthorityPda, true);
 
       try {
         await program.methods
@@ -151,9 +165,9 @@ describe("USDC Affiliate Escrow", () => {
           .accounts({
             merchantPool: invalidPoolPda,
             merchant: invalidMerchant.publicKey,
-            merchantUsdc: merchantUsdc,
-            escrowAuthority: escrowAuthorityPda,
-            escrowUsdc: escrowUsdc,
+            merchantUsdc: invalidMerchantUsdc,
+            escrowAuthority: invalidEscrowAuthorityPda,
+            escrowUsdc: invalidEscrowUsdc,
             usdcMint: usdcMint,
             tokenProgram: TOKEN_PROGRAM_ID,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -161,6 +175,7 @@ describe("USDC Affiliate Escrow", () => {
           })
           .signers([invalidMerchant])
           .rpc();
+
         expect.fail("Should have thrown error");
       } catch (error: any) {
         expect(error.error.errorCode.code).to.equal("InvalidCommissionRate");
@@ -202,6 +217,7 @@ describe("USDC Affiliate Escrow", () => {
         .accounts({
           merchantPool: merchantPoolPda,
           affiliateAccount: affiliatePda,
+          affiliateWallet: affiliate.publicKey,
           escrowAuthority: escrowAuthorityPda,
           escrowUsdc: escrowUsdc,
           affiliateUsdc: affiliateUsdc,
