@@ -33,7 +33,7 @@ class AffiliateAccount(BaseModel):
 class RedioContract:
     """Direct interaction with Redio smart contract"""
 
-    PROGRAM_ID = Pubkey.from_string("8fYScBcM23tUV4fPTXo994qMpyJ86LZR7P3cU8TghY73")
+    PROGRAM_ID = Pubkey.from_string("CFQoHeX28aKhpgsLCSGM2zpou6RkRrwRoHVToWS2B6tQ")
     TOKEN_PROGRAM_ID = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
     ASSOCIATED_TOKEN_PROGRAM_ID = Pubkey.from_string(
         "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"

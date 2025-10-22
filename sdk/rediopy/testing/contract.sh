@@ -14,7 +14,7 @@ fi
 echo "✓ Test validator is running"
 
 # Get the program ID from the declare_id! macro
-PROGRAM_ID="8fYScBcM23tUV4fPTXo994qMpyJ86LZR7P3cU8TghY73"
+PROGRAM_ID="CFQoHeX28aKhpgsLCSGM2zpou6RkRrwRoHVToWS2B6tQ"
 
 echo "📦 Program ID: $PROGRAM_ID"
 

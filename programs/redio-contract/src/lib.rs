@@ -4,7 +4,7 @@ use anchor_spl::{
     token_interface::{self, Mint, TokenAccount, TokenInterface, TransferChecked},
 };
 
-declare_id!("8fYScBcM23tUV4fPTXo994qMpyJ86LZR7P3cU8TghY73");
+declare_id!("CFQoHeX28aKhpgsLCSGM2zpou6RkRrwRoHVToWS2B6tQ");
 
 #[program]
 pub mod redio_contract {

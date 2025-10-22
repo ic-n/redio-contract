@@ -8,7 +8,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-redio_contract = "8fYScBcM23tUV4fPTXo994qMpyJ86LZR7P3cU8TghY73"
+redio_contract = "CFQoHeX28aKhpgsLCSGM2zpou6RkRrwRoHVToWS2B6tQ"
 
 [registry]
 url = "https://api.apr.dev"
