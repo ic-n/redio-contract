@@ -10,11 +10,14 @@ skip-lint = false
 [programs.localnet]
 redio_contract = "CFQoHeX28aKhpgsLCSGM2zpou6RkRrwRoHVToWS2B6tQ"
 
+[programs.devnet]
+redio_contract = "CFQoHeX28aKhpgsLCSGM2zpou6RkRrwRoHVToWS2B6tQ"
+
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "Devnet"
 wallet = "./creds/id.json"
 
 [scripts]
