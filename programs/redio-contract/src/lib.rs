@@ -13,20 +13,28 @@ pub mod redio_contract {
     /// Initialize a merchant pool with escrow account
     pub fn initialize_pool(
         ctx: Context<InitializePool>,
+        pool_id: String,
         commission_rate: u16,
         initial_deposit: u64,
     ) -> Result<()> {
+        require!(
+            pool_id.len() > 0 && pool_id.len() <= 32,
+            ErrorCode::InvalidPoolId
+        );
         require!(commission_rate <= 10000, ErrorCode::InvalidCommissionRate);
         require!(initial_deposit > 0, ErrorCode::InvalidAmount);
 
         let pool = &mut ctx.accounts.merchant_pool;
         pool.merchant = ctx.accounts.merchant.key();
+        pool.pool_id = pool_id.clone();
         pool.usdc_mint = ctx.accounts.usdc_mint.key();
         pool.commission_rate = commission_rate;
         pool.total_volume = 0;
         pool.total_commissions_paid = 0;
+        pool.is_active = true;
         pool.bump = ctx.bumps.merchant_pool;
         pool.escrow_bump = ctx.bumps.escrow_authority;
+        pool.created_at = Clock::get()?.unix_timestamp;
 
         if initial_deposit > 0 {
             let decimals = ctx.accounts.usdc_mint.decimals;
@@ -48,8 +56,50 @@ pub mod redio_contract {
         emit!(PoolInitialized {
             pool: pool.key(),
             merchant: pool.merchant,
+            pool_id,
             commission_rate,
             initial_deposit,
+            timestamp: Clock::get()?.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Update commission rate for a specific pool
+    pub fn update_pool_commission(
+        ctx: Context<UpdatePoolCommission>,
+        new_commission_rate: u16,
+    ) -> Result<()> {
+        require!(
+            new_commission_rate <= 10000,
+            ErrorCode::InvalidCommissionRate
+        );
+
+        let pool = &mut ctx.accounts.merchant_pool;
+        let old_rate = pool.commission_rate;
+        pool.commission_rate = new_commission_rate;
+
+        emit!(PoolCommissionUpdated {
+            pool: pool.key(),
+            merchant: pool.merchant,
+            pool_id: pool.pool_id.clone(),
+            old_rate,
+            new_rate: new_commission_rate,
+            timestamp: Clock::get()?.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Deactivate a pool
+    pub fn deactivate_pool(ctx: Context<DeactivatePool>) -> Result<()> {
+        let pool = &mut ctx.accounts.merchant_pool;
+        pool.is_active = false;
+
+        emit!(PoolDeactivated {
+            pool: pool.key(),
+            merchant: pool.merchant,
+            pool_id: pool.pool_id.clone(),
             timestamp: Clock::get()?.unix_timestamp,
         });
 
@@ -63,6 +113,9 @@ pub mod redio_contract {
             ErrorCode::InvalidRefId
         );
 
+        let pool = &ctx.accounts.merchant_pool;
+        require!(pool.is_active, ErrorCode::PoolInactive);
+
         let affiliate = &mut ctx.accounts.affiliate_account;
         affiliate.pool = ctx.accounts.merchant_pool.key();
         affiliate.wallet = ctx.accounts.affiliate_wallet.key();
@@ -75,6 +128,7 @@ pub mod redio_contract {
 
         emit!(AffiliateAdded {
             pool: affiliate.pool,
+            pool_id: pool.pool_id.clone(),
             affiliate: affiliate.key(),
             wallet: affiliate.wallet,
             ref_id,
@@ -88,10 +142,11 @@ pub mod redio_contract {
     pub fn process_sale(ctx: Context<ProcessSale>, sale_amount: u64) -> Result<()> {
         require!(sale_amount > 0, ErrorCode::InvalidAmount);
 
+        let pool = &mut ctx.accounts.merchant_pool;
+        require!(pool.is_active, ErrorCode::PoolInactive);
+
         let affiliate = &mut ctx.accounts.affiliate_account;
         require!(affiliate.is_active, ErrorCode::AffiliateInactive);
-
-        let pool = &mut ctx.accounts.merchant_pool;
 
         // Calculate commission with checked arithmetic
         let commission_rate_u64 = pool.commission_rate as u64;
@@ -152,6 +207,7 @@ pub mod redio_contract {
 
         emit!(SaleProcessed {
             pool: pool.key(),
+            pool_id: pool.pool_id.clone(),
             affiliate: affiliate.key(),
             affiliate_wallet: affiliate.wallet,
             sale_amount,
@@ -167,8 +223,11 @@ pub mod redio_contract {
         let affiliate = &mut ctx.accounts.affiliate_account;
         affiliate.is_active = false;
 
+        let pool = &ctx.accounts.merchant_pool;
+
         emit!(AffiliateRemoved {
-            pool: ctx.accounts.merchant_pool.key(),
+            pool: pool.key(),
+            pool_id: pool.pool_id.clone(),
             affiliate: affiliate.key(),
             wallet: affiliate.wallet,
             timestamp: Clock::get()?.unix_timestamp,
@@ -180,6 +239,9 @@ pub mod redio_contract {
     /// Deposit additional USDC to escrow
     pub fn deposit_escrow(ctx: Context<DepositEscrow>, amount: u64) -> Result<()> {
         require!(amount > 0, ErrorCode::InvalidAmount);
+
+        let pool = &ctx.accounts.merchant_pool;
+        require!(pool.is_active, ErrorCode::PoolInactive);
 
         let decimals = ctx.accounts.usdc_mint.decimals;
         token_interface::transfer_checked(
@@ -197,7 +259,8 @@ pub mod redio_contract {
         )?;
 
         emit!(EscrowDeposited {
-            pool: ctx.accounts.merchant_pool.key(),
+            pool: pool.key(),
+            pool_id: pool.pool_id.clone(),
             amount,
             timestamp: Clock::get()?.unix_timestamp,
         });
@@ -209,13 +272,14 @@ pub mod redio_contract {
     pub fn withdraw_escrow(ctx: Context<WithdrawEscrow>, amount: u64) -> Result<()> {
         require!(amount > 0, ErrorCode::InvalidAmount);
 
+        let pool = &ctx.accounts.merchant_pool;
+
         ctx.accounts.escrow_usdc.reload()?;
         require!(
             ctx.accounts.escrow_usdc.amount >= amount,
             ErrorCode::InsufficientEscrowBalance
         );
 
-        let pool = &ctx.accounts.merchant_pool;
         let decimals = ctx.accounts.usdc_mint.decimals;
         let pool_key = pool.key();
         let seeds = &[b"escrow_authority", pool_key.as_ref(), &[pool.escrow_bump]];
@@ -238,6 +302,7 @@ pub mod redio_contract {
 
         emit!(EscrowWithdrawn {
             pool: pool.key(),
+            pool_id: pool.pool_id.clone(),
             amount,
             timestamp: Clock::get()?.unix_timestamp,
         });
@@ -250,12 +315,16 @@ pub mod redio_contract {
 #[derive(InitSpace)]
 pub struct MerchantPool {
     pub merchant: Pubkey,
+    #[max_len(32)]
+    pub pool_id: String,
     pub usdc_mint: Pubkey,
     pub commission_rate: u16,
     pub total_volume: u64,
     pub total_commissions_paid: u64,
+    pub is_active: bool,
     pub bump: u8,
     pub escrow_bump: u8,
+    pub created_at: i64,
 }
 
 #[account]
@@ -273,15 +342,26 @@ pub struct AffiliateAccount {
 }
 
 #[derive(Accounts)]
+#[instruction(pool_id: String)]
 pub struct InitializePool<'info> {
     #[account(
         init,
         payer = merchant,
         space = 8 + MerchantPool::INIT_SPACE,
-        seeds = [b"pool", merchant.key().as_ref()],
+        seeds = [
+            b"pool",
+            merchant.key().as_ref(),
+            pool_id.as_bytes()
+        ],
         bump
     )]
     pub merchant_pool: Account<'info, MerchantPool>,
+
+    #[account(
+        seeds = [b"escrow_authority", merchant_pool.key().as_ref()],
+        bump
+    )]
+    pub escrow_authority: UncheckedAccount<'info>,
 
     #[account(mut)]
     pub merchant: Signer<'info>,
@@ -294,13 +374,7 @@ pub struct InitializePool<'info> {
     pub merchant_usdc: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
-        seeds = [b"escrow_authority", merchant_pool.key().as_ref()],
-        bump
-    )]
-    pub escrow_authority: UncheckedAccount<'info>,
-
-    #[account(
-        init_if_needed,
+        init,
         payer = merchant,
         associated_token::mint = usdc_mint,
         associated_token::authority = escrow_authority,
@@ -316,12 +390,32 @@ pub struct InitializePool<'info> {
 }
 
 #[derive(Accounts)]
+pub struct UpdatePoolCommission<'info> {
+    #[account(
+        mut,
+        constraint = merchant_pool.merchant == merchant.key() @ ErrorCode::Unauthorized
+    )]
+    pub merchant_pool: Account<'info, MerchantPool>,
+
+    pub merchant: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DeactivatePool<'info> {
+    #[account(
+        mut,
+        constraint = merchant_pool.merchant == merchant.key() @ ErrorCode::Unauthorized
+    )]
+    pub merchant_pool: Account<'info, MerchantPool>,
+
+    pub merchant: Signer<'info>,
+}
+
+#[derive(Accounts)]
 #[instruction(ref_id: String)]
 pub struct AddAffiliate<'info> {
     #[account(
-        seeds = [b"pool", merchant.key().as_ref()],
-        bump = merchant_pool.bump,
-        has_one = merchant @ ErrorCode::Unauthorized
+        constraint = merchant_pool.merchant == merchant.key() @ ErrorCode::Unauthorized
     )]
     pub merchant_pool: Account<'info, MerchantPool>,
 
@@ -348,11 +442,7 @@ pub struct AddAffiliate<'info> {
 
 #[derive(Accounts)]
 pub struct ProcessSale<'info> {
-    #[account(
-        mut,
-        seeds = [b"pool", merchant_pool.merchant.as_ref()],
-        bump = merchant_pool.bump
-    )]
+    #[account(mut)]
     pub merchant_pool: Account<'info, MerchantPool>,
 
     #[account(
@@ -404,9 +494,7 @@ pub struct ProcessSale<'info> {
 #[derive(Accounts)]
 pub struct RemoveAffiliate<'info> {
     #[account(
-        seeds = [b"pool", merchant.key().as_ref()],
-        bump = merchant_pool.bump,
-        has_one = merchant @ ErrorCode::Unauthorized
+        constraint = merchant_pool.merchant == merchant.key() @ ErrorCode::Unauthorized
     )]
     pub merchant_pool: Account<'info, MerchantPool>,
 
@@ -429,9 +517,7 @@ pub struct RemoveAffiliate<'info> {
 #[derive(Accounts)]
 pub struct DepositEscrow<'info> {
     #[account(
-        seeds = [b"pool", merchant.key().as_ref()],
-        bump = merchant_pool.bump,
-        has_one = merchant @ ErrorCode::Unauthorized
+        constraint = merchant_pool.merchant == merchant.key() @ ErrorCode::Unauthorized
     )]
     pub merchant_pool: Account<'info, MerchantPool>,
 
@@ -466,9 +552,7 @@ pub struct DepositEscrow<'info> {
 #[derive(Accounts)]
 pub struct WithdrawEscrow<'info> {
     #[account(
-        seeds = [b"pool", merchant.key().as_ref()],
-        bump = merchant_pool.bump,
-        has_one = merchant @ ErrorCode::Unauthorized
+        constraint = merchant_pool.merchant == merchant.key() @ ErrorCode::Unauthorized
     )]
     pub merchant_pool: Account<'info, MerchantPool>,
 
@@ -504,14 +588,34 @@ pub struct WithdrawEscrow<'info> {
 pub struct PoolInitialized {
     pub pool: Pubkey,
     pub merchant: Pubkey,
+    pub pool_id: String,
     pub commission_rate: u16,
     pub initial_deposit: u64,
     pub timestamp: i64,
 }
 
 #[event]
+pub struct PoolCommissionUpdated {
+    pub pool: Pubkey,
+    pub merchant: Pubkey,
+    pub pool_id: String,
+    pub old_rate: u16,
+    pub new_rate: u16,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct PoolDeactivated {
+    pub pool: Pubkey,
+    pub merchant: Pubkey,
+    pub pool_id: String,
+    pub timestamp: i64,
+}
+
+#[event]
 pub struct AffiliateAdded {
     pub pool: Pubkey,
+    pub pool_id: String,
     pub affiliate: Pubkey,
     pub wallet: Pubkey,
     pub ref_id: String,
@@ -521,6 +625,7 @@ pub struct AffiliateAdded {
 #[event]
 pub struct SaleProcessed {
     pub pool: Pubkey,
+    pub pool_id: String,
     pub affiliate: Pubkey,
     pub affiliate_wallet: Pubkey,
     pub sale_amount: u64,
@@ -531,6 +636,7 @@ pub struct SaleProcessed {
 #[event]
 pub struct AffiliateRemoved {
     pub pool: Pubkey,
+    pub pool_id: String,
     pub affiliate: Pubkey,
     pub wallet: Pubkey,
     pub timestamp: i64,
@@ -539,6 +645,7 @@ pub struct AffiliateRemoved {
 #[event]
 pub struct EscrowDeposited {
     pub pool: Pubkey,
+    pub pool_id: String,
     pub amount: u64,
     pub timestamp: i64,
 }
@@ -546,18 +653,24 @@ pub struct EscrowDeposited {
 #[event]
 pub struct EscrowWithdrawn {
     pub pool: Pubkey,
+    pub pool_id: String,
     pub amount: u64,
     pub timestamp: i64,
 }
 
+// Error codes
 #[error_code]
 pub enum ErrorCode {
     #[msg("Invalid commission rate (must be <= 10000 basis points)")]
     InvalidCommissionRate,
     #[msg("Amount must be greater than 0")]
     InvalidAmount,
+    #[msg("Pool ID must be between 1-32 characters")]
+    InvalidPoolId,
     #[msg("Reference ID must be between 1-32 characters")]
     InvalidRefId,
+    #[msg("Pool is not active")]
+    PoolInactive,
     #[msg("Affiliate is not active")]
     AffiliateInactive,
     #[msg("Arithmetic overflow occurred")]
