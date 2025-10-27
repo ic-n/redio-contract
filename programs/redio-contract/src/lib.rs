@@ -293,6 +293,8 @@ pub struct InitializePool<'info> {
     )]
     pub merchant_usdc: InterfaceAccount<'info, TokenAccount>,
 
+/// CHECK: This is a PDA used as the authority for the escrow token account.
+    /// It doesn't hold data, only acts as a signer via seeds for token transfers.
     #[account(
         seeds = [b"escrow_authority", merchant_pool.key().as_ref()],
         bump
@@ -338,6 +340,8 @@ pub struct AddAffiliate<'info> {
     )]
     pub affiliate_account: Account<'info, AffiliateAccount>,
 
+/// CHECK: This account is used only as a reference for the affiliate's wallet address.
+    /// No data is read from or written to this account.
     pub affiliate_wallet: UncheckedAccount<'info>,
 
     #[account(mut)]
@@ -366,9 +370,14 @@ pub struct ProcessSale<'info> {
         constraint = affiliate_account.pool == merchant_pool.key() @ ErrorCode::InvalidAffiliate
     )]
     pub affiliate_account: Account<'info, AffiliateAccount>,
+
+    /// CHECK: This account is used only as a reference for the affiliate's wallet address.
+    /// It must match the affiliate_account.wallet field.
     #[account(mut)]
     pub affiliate_wallet: UncheckedAccount<'info>,
 
+    /// CHECK: This is a PDA used as the authority for the escrow token account.
+    /// It acts as a signer via seeds for token transfers from escrow.
     #[account(
         seeds = [b"escrow_authority", merchant_pool.key().as_ref()],
         bump = merchant_pool.escrow_bump
@@ -420,6 +429,9 @@ pub struct RemoveAffiliate<'info> {
         bump = affiliate_account.bump
     )]
     pub affiliate_account: Account<'info, AffiliateAccount>,
+
+    /// CHECK: This account is used only as a reference for the affiliate's wallet address.
+    /// It must match the affiliate_account.wallet field.
     #[account(mut)]
     pub affiliate_wallet: UncheckedAccount<'info>,
 
@@ -445,6 +457,8 @@ pub struct DepositEscrow<'info> {
     )]
     pub merchant_usdc: InterfaceAccount<'info, TokenAccount>,
 
+/// CHECK: This is a PDA used as the authority for the escrow token account.
+    /// It acts as a signer via seeds for receiving token deposits.
     #[account(
         seeds = [b"escrow_authority", merchant_pool.key().as_ref()],
         bump = merchant_pool.escrow_bump
@@ -482,6 +496,8 @@ pub struct WithdrawEscrow<'info> {
     )]
     pub merchant_usdc: InterfaceAccount<'info, TokenAccount>,
 
+/// CHECK: This is a PDA used as the authority for the escrow token account.
+    /// It acts as a signer via seeds for token withdrawals from escrow.
     #[account(
         seeds = [b"escrow_authority", merchant_pool.key().as_ref()],
         bump = merchant_pool.escrow_bump
